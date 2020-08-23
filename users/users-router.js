@@ -25,26 +25,11 @@ router.get("/users", (req, res) => {
 		})
 })
 
-router.get("/users/:id", (req, res) => {
-	users.findById(req.params.id)
-		.then((user) => {
-			if (user) {
-				res.status(200).json(user)
-			} else {
-				res.status(404).json({
-					message: "User not found",
-				})
-			}
-		})
-		.catch((error) => {
-			console.log(error)
-			res.status(500).json({
-				message: "Error retrieving the user",
-			})
-		})
+router.get("/users/:id", checkUserId(), (req, res) => {
+	res.status(200).json(req.user)
 })
 
-router.post("/users", (req, res) => {
+router.post("/users", checkUserData(), (req, res) => {
 	if (!req.body.name || !req.body.email) {
 		return res.status(400).json({
 			message: "Missing user name or email",
@@ -63,7 +48,7 @@ router.post("/users", (req, res) => {
 		})
 })
 
-router.put("/users/:id", (req, res) => {
+router.put("/users/:id", checkUserId(), checkUserData(), (req, res) => {
 	if (!req.body.name || !req.body.email) {
 		return res.status(400).json({
 			message: "Missing user name or email",
@@ -88,7 +73,7 @@ router.put("/users/:id", (req, res) => {
 		})
 })
 
-router.delete("/users/:id", (req, res) => {
+router.delete("/users/:id", checkUserId(), (req, res) => {
 	users.remove(req.params.id)
 		.then((count) => {
 			if (count > 0) {
@@ -112,7 +97,7 @@ router.delete("/users/:id", (req, res) => {
 // Since posts in this case is a sub-resource of the user resource,
 // include it as a sub-route. If you list all of a users posts, you
 // don't want to see posts from another user.
-router.get("/users/:id/posts", (req, res) => {
+router.get("/users/:id/posts", checkUserId(), (req, res) => {
 	users.findUserPosts(req.params.id)
 		.then((posts) => {
 			res.status(200).json(posts)
@@ -128,7 +113,7 @@ router.get("/users/:id/posts", (req, res) => {
 // Since we're now dealing with two IDs, a user ID and a post ID,
 // we have to switch up the URL parameter names.
 // id === user ID and postId === post ID
-router.get("/users/:id/posts/:postId", (req, res) => {
+router.get("/users/:id/posts/:postId", checkUserId(), (req, res) => {
 	users.findUserPostById(req.params.id, req.params.postId)
 		.then((post) => {
 			if (post) {
@@ -147,7 +132,7 @@ router.get("/users/:id/posts/:postId", (req, res) => {
 		})
 })
 
-router.post("/users/:id/posts", (req, res) => {
+router.post("/users/:id/posts", checkUserId(), (req, res) => {
 	if (!req.body.text) {
 		// Make sure you have a return statement, otherwise the
 		// function will continue running and you'll see ERR_HTTP_HEADERS_SENT
@@ -167,5 +152,46 @@ router.post("/users/:id/posts", (req, res) => {
 			})
 		})
 })
+
+function checkUserId() {
+	return (req, res, next) => {
+		users.findById(req.params.id)
+			.then(user => {
+				if (user) {
+					// attach user to the request object so we can access it later
+					// without having to access the database again
+					req.user = user
+					next()
+				} else {
+					res.status(404).json({
+						message: "User not found"
+					})
+				}
+			})
+			.catch(error => {
+				console.log(error)
+				res.status(500).json({
+					message: "Error retrieving user",
+				})
+			})
+	}
+}
+
+function checkUserData() {
+	return (req, res, next) => {
+		console.log(req.body)
+		if (!req.body.name) {
+			return res.status(400).json({
+				message: "Missing user name",
+			})
+		} else if (!req.body.email) {
+			return res.status(400).json({
+				message: "Missing user email",
+			})
+		} else {
+			next()
+		}
+	}
+}
 
 module.exports = router
