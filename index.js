@@ -11,7 +11,7 @@ const port = 4000
 server.use(express.json())
 server.use(noInsomnia())
 server.use(morgan("combined"))
-// server.use(logger("long"))
+server.use(logger("long"))
 
 server.use(welcomeRouter)
 server.use(usersRouter)
